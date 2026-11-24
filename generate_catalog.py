@@ -1,3 +1,67 @@
+import csv
+import io
+import re
+import shutil
+import urllib.request
+from pathlib import Path
+from html import escape
+from urllib.parse import urlencode, urlsplit
+import xml.etree.ElementTree as ET
+
+ROOT = Path(__file__).resolve().parent
+OUT = ROOT / 'public'
+SITE = 'https://screencaps.github.io/'
+BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTw52xscROjuju9tOk7TlUbx3Q6FAx60jvxgduKYNGkUhySgePAGoRuZqaqWh-UjnuTBhcuucFXvHVC/pub'
+SHEETS = {'Фильмы':0,'Сериалы':1699969347,'Мультфильмы':153837603,'Дорамы':895187217,'Мультсериалы':484338684,'Серии':1847353801,'Жанры':834653010}
+
+def read_sheet(name):
+    url = BASE + '?' + urlencode({'gid': SHEETS[name], 'single':'true', 'output':'csv'})
+    req = urllib.request.Request(url, headers={'User-Agent':'SCREENCAPS catalog builder'})
+    with urllib.request.urlopen(req, timeout=60) as response:
+        text = response.read().decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(text))
+    required = {'Жанр'} if name == 'Жанры' else ({'ID произведения','Номер серии','Статус'} if name == 'Серии' else {'ID','Русское название','Статус'})
+    if not required.issubset(set(reader.fieldnames or [])):
+        raise ValueError(f'Неверные заголовки листа: {name}')
+    return [{k:(v or '').strip() for k,v in row.items() if k is not None} for row in reader]
+
+def published(r): return r.get('Статус','').casefold() == 'опубликовано'
+def e(s): return escape(str(s or ''), quote=True)
+def safe_url(s, vk=False):
+    try:
+        u=urlsplit(s)
+        if u.scheme=='https' and u.hostname and (not vk or u.hostname in {'vk.ru','vk.com','m.vk.ru','m.vk.com'}): return s
+    except ValueError: pass
+    return ''
+def vk_link(s,label):
+    return f'<a class="vk" href="{e(s)}" target="_blank" rel="noopener noreferrer">{e(label)}</a>' if safe_url(s,True) else ''
+def filter_link(key,value,label): return f'<a class="chip" href="/?{e(urlencode({key:value}))}">{e(label)}</a>'
+def number_key(s): return (0,int(s)) if s.isdigit() else (1,s)
+
+def build(sheets, template):
+    head=template.split('</head>',1)[0]
+    if 'scTrackView' not in head: raise ValueError('Не найден код аналитики в исходном index.html')
+    banner=template[template.index('<div id="sc-consent"'):].split('</body>',1)[0]
+    footer=re.search(r'<footer>.*?</footer>',template,re.S).group()
+    rows=[]; seen=set()
+    for category in list(SHEETS)[:5]:
+        for r in sheets[category]:
+            if not published(r): continue
+            ident=r.get('ID',''); title=r.get('Русское название','')
+            if not title or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',ident): raise ValueError(f'Неверный ID или название: {ident} {title}')
+            if ident in seen: raise ValueError(f'Повтор ID: {ident}')
+            seen.add(ident); rows.append((category,r))
+    if OUT.exists(): shutil.rmtree(OUT)
+    OUT.mkdir(); (OUT/'films').mkdir()
+    for p in ROOT.iterdir():
+        if p.is_file() and p.suffix in {'.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.ico','.txt','.xml'} and p.name not in {'index (1).html','sitemap.xml'}:
+            shutil.copy2(p,OUT/p.name)
+    (OUT/'.nojekyll').touch()
+    urls=[SITE,SITE+'services.html']
+    links=[]
+    for category,r in rows:
+        ident=r['ID']; title=r['Русское название']; year=r.get('Год выпуска',''); desc=r.get('Описание',''); poster=safe_url(r.get('Постер','')); path=f'films/{ident}.html'; url=SITE+path; urls.append(url)
+        page_title=title+(f' ({year})' if year else '')+' — SCREENCAPS'
         summary=' '.join(desc.split())[:300] or f'{title} — {category.lower()}, кадры и материалы ВКонтакте.'
         h=re.sub(r'<title>.*?</title>',lambda m:f'<title>{e(page_title)}</title>',head,count=1,flags=re.S)
         h=re.sub(r'<meta name="description"[^>]*>',lambda m:f'<meta name="description" content="{e(summary)}">',h,count=1)
