@@ -57,7 +57,7 @@ def build(sheets, template):
         if p.is_file() and p.suffix in {'.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.ico','.txt','.xml'} and p.name not in {'index (1).html','sitemap.xml'}:
             shutil.copy2(p,OUT/p.name)
     (OUT/'.nojekyll').touch()
-    urls=[SITE,SITE+'services.html']
+    urls=[SITE,SITE+'services.html',SITE+'about.html',SITE+'privacy.html']
     links=[]
     for category,r in rows:
         ident=r['ID']; title=r['Русское название']; year=r.get('Год выпуска',''); desc=r.get('Описание',''); poster=safe_url(r.get('Постер','')); path=f'films/{ident}.html'; url=SITE+path; urls.append(url)
@@ -69,7 +69,7 @@ def build(sheets, template):
         h+=f'<link rel="canonical" href="{e(url)}"><meta property="og:type" content="website"><meta property="og:title" content="{e(page_title)}"><meta property="og:description" content="{e(summary)}"><meta property="og:url" content="{e(url)}">'
         if poster: h+=f'<meta property="og:image" content="{e(poster)}">'
         h+='</head><body>'
-        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/">← Назад к каталогу</a><article class="panel">'
+        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/">← Назад к каталогу</a><article class="panel">'
         if poster: body+=f'<div class="poster"><img src="{e(poster)}" alt="{e(title)}"></div>'
         body+=f'<h2>{e(title)}</h2><p>{e(r.get("Оригинальное название"))}</p><div class="detailmeta">'
         if year: body+=filter_link('year',year,year+('–'+r['Год окончания'] if r.get('Год окончания') else ''))
@@ -91,6 +91,7 @@ def build(sheets, template):
                     body+=f'<p>Серия {e(ep["Номер серии"])} — {e(ep.get("Название серии"))}</p><p>{e(ep.get("Описание"))}</p><small>{e(ep.get("Дата выхода"))}</small>'+vk_link(ep.get('Альбом ВК',''),'Фотоальбом')+vk_link(ep.get('Пост ВК',''),'Публикация')
                 body+='</details>'
             if not groups: body+='<p>Серии пока не добавлены.</p>'
+        body+='<p><a class="vk" id="orderFilm" href="https://vk.me/screencaps" target="_blank" rel="noopener noreferrer">Заказать кадры</a></p>'
         body+='<p><button type="button" onclick="navigator.clipboard.writeText(location.href).then(()=>this.textContent=\'Ссылка скопирована\').catch(()=>prompt(\'Ссылка\',location.href))">Скопировать ссылку на карточку</button></p></article></section></main>'
         (OUT/path).write_text(h+body+footer+banner+'</body></html>',encoding='utf-8')
         links.append((ident,path,title))
