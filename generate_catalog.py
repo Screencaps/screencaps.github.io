@@ -1,3 +1,35 @@
+import csv
+import io
+import re
+import shutil
+import urllib.request
+from pathlib import Path
+from html import escape
+from urllib.parse import urlencode, urlsplit
+import xml.etree.ElementTree as ET
+
+ROOT = Path(__file__).resolve().parent
+OUT = ROOT / 'public'
+SITE = 'https://screencaps.github.io/'
+BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTw52xscROjuju9tOk7TlUbx3Q6FAx60jvxgduKYNGkUhySgePAGoRuZqaqWh-UjnuTBhcuucFXvHVC/pub'
+SHEETS = {'Фильмы':0,'Сериалы':1699969347,'Мультфильмы':153837603,'Дорамы':895187217,'Мультсериалы':484338684,'Серии':1847353801,'Жанры':834653010}
+
+def read_sheet(name):
+    url = BASE + '?' + urlencode({'gid': SHEETS[name], 'single':'true', 'output':'csv'})
+    req = urllib.request.Request(url, headers={'User-Agent':'SCREENCAPS catalog builder'})
+    with urllib.request.urlopen(req, timeout=60) as response:
+        text = response.read().decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(text))
+    required = {'Жанр'} if name == 'Жанры' else ({'ID серии','ID произведения','Сезон','Номер серии','Статус','Альбом ВК','Пост ВК'} if name == 'Серии' else {'ID','Русское название','Статус'})
+    if not required.issubset(set(reader.fieldnames or [])):
+        raise ValueError(f'Неверные заголовки листа: {name}')
+    return [{k:(v or '').strip() for k,v in row.items() if k is not None} for row in reader]
+
+def published(r): return r.get('Статус','').casefold() == 'опубликовано'
+def e(s): return escape(str(s or ''), quote=True)
+def safe_url(s, vk=False):
+    try:
+        u=urlsplit(s)
         if u.scheme=='https' and u.hostname and (not vk or u.hostname in {'vk.ru','vk.com','m.vk.ru','m.vk.com'}): return s
     except ValueError: pass
     return ''
