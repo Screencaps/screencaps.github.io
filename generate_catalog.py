@@ -1,35 +1,3 @@
-import csv
-import io
-import re
-import shutil
-import urllib.request
-from pathlib import Path
-from html import escape
-from urllib.parse import urlencode, urlsplit
-import xml.etree.ElementTree as ET
-
-ROOT = Path(__file__).resolve().parent
-OUT = ROOT / 'public'
-SITE = 'https://screencaps.github.io/'
-BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTw52xscROjuju9tOk7TlUbx3Q6FAx60jvxgduKYNGkUhySgePAGoRuZqaqWh-UjnuTBhcuucFXvHVC/pub'
-SHEETS = {'Фильмы':0,'Сериалы':1699969347,'Мультфильмы':153837603,'Дорамы':895187217,'Мультсериалы':484338684,'Серии':1847353801,'Жанры':834653010}
-
-def read_sheet(name):
-    url = BASE + '?' + urlencode({'gid': SHEETS[name], 'single':'true', 'output':'csv'})
-    req = urllib.request.Request(url, headers={'User-Agent':'SCREENCAPS catalog builder'})
-    with urllib.request.urlopen(req, timeout=60) as response:
-        text = response.read().decode('utf-8-sig')
-    reader = csv.DictReader(io.StringIO(text))
-    required = {'Жанр'} if name == 'Жанры' else ({'ID серии','ID произведения','Сезон','Номер серии','Статус','Альбом ВК','Пост ВК'} if name == 'Серии' else {'ID','Русское название','Статус'})
-    if not required.issubset(set(reader.fieldnames or [])):
-        raise ValueError(f'Неверные заголовки листа: {name}')
-    return [{k:(v or '').strip() for k,v in row.items() if k is not None} for row in reader]
-
-def published(r): return r.get('Статус','').casefold() == 'опубликовано'
-def e(s): return escape(str(s or ''), quote=True)
-def safe_url(s, vk=False):
-    try:
-        u=urlsplit(s)
         if u.scheme=='https' and u.hostname and (not vk or u.hostname in {'vk.ru','vk.com','m.vk.ru','m.vk.com'}): return s
     except ValueError: pass
     return ''
@@ -85,7 +53,7 @@ def build(sheets, template):
             for ep in sheets['Серии']:
                 if ep.get('ID произведения')!=ident or ep.get('Статус','').casefold() not in {'опубликовано','ожидается'}: continue
                 eid=ep.get('ID серии',''); season=ep.get('Сезон',''); num=ep.get('Номер серии','')
-                if not re.fullmatch(r'[A-Za-z0-9_-]{1,150}',eid) or not season.isdigit() or not num.isdigit() or int(season)<1 or int(num)<1: raise ValueError(f'Некорректная серия: {eid}')
+                if not re.fullmatch(r'[A-Za-z0-9_-]{1,150}',eid) or not season.isdigit() or not num.isdigit() or int(season)<1 or int(num)<0: raise ValueError(f'Некорректная серия: {eid}')
                 if eid in episode_pages or (int(season),int(num)) in used: raise ValueError(f'Повтор серии: {eid}')
                 used.add((int(season),int(num))); episode_pages[eid]='/episodes/'+eid+'.html'; groups.setdefault(int(season),[]).append(ep)
             def ready(ep): return published(ep) and bool(safe_url(ep.get('Альбом ВК',''),True) or safe_url(ep.get('Пост ВК',''),True))
@@ -93,10 +61,13 @@ def build(sheets, template):
             body+=f'<h3 style="clear:both">Сезоны и серии</h3><p>Добавлено {sum(ready(ep) for ep in all_eps)} из {len(all_eps)} серий</p>'
             for season,eps in sorted(groups.items()):
                 eps.sort(key=lambda ep:int(ep['Номер серии']))
-                body+=f'<details{" open" if season==min(groups) else ""}><summary>Сезон {season} · {len(eps)} серий</summary><div class="episode-grid">'
+                bonus_count=sum(int(ep["Номер серии"])==0 for ep in eps)
+                season_label=f"{len(eps)-bonus_count} серий" + (f" + {bonus_count} бонусная" if bonus_count else "")
+                body+=f'<details{" open" if season==min(groups) else ""}><summary>Сезон {season} · {e(season_label)}</summary><div class="episode-grid">'
                 for i,ep in enumerate(eps):
                     eid=ep['ID серии']; num=ep['Номер серии']; ep_path=episode_pages[eid]; available=ready(ep)
-                    body+=f'<a class="episode-card" href="{e(ep_path)}"><strong>Серия {e(num)}</strong><small class="{"episode-ready" if available else ""}">{"Добавлена" if available else "Ожидается"}</small></a>'
+                    episode_label = f"Серия {num}" + (" — Бонусная серия" if int(num)==0 else "")
+                    body+=f'<a class="episode-card" href="{e(ep_path)}"><strong>{e(episode_label)}</strong><small class="{"episode-ready" if available else ""}">{"Добавлена" if available else "Ожидается"}</small></a>'
                     ep_url=SITE.rstrip('/')+ep_path; ep_title=f'{title} — сезон {season}, серия {num} — SCREENCAPS'; ep_summary=f'{title}: сезон {season}, серия {num}. '+('Кадры и материалы ВКонтакте.' if available else 'Материалы пока не добавлены.')
                     eh=re.sub(r'<title>.*?</title>',lambda m:f'<title>{e(ep_title)}</title>',h,count=1,flags=re.S)
                     eh=re.sub(r'<meta name="description"[^>]*>',lambda m:f'<meta name="description" content="{e(ep_summary)}">',eh,count=1)
@@ -105,7 +76,7 @@ def build(sheets, template):
                     if not available: eh=eh.replace('content="index,follow"','content="noindex,follow"')
                     eb=body.split('<main>',1)[0]+f'<main><section id="detail"><a href="/{e(path)}">← Назад к сериалу</a><article class="panel">'
                     if poster: eb+=f'<div class="poster"><img src="{e(poster)}" alt="{e(title)}"></div>'
-                    eb+=f'<h2>{e(title)}</h2><p>{e(r.get("Оригинальное название"))}</p><h3>Сезон {season} · Серия {e(num)}</h3><h3>Материалы ВКонтакте</h3>'
+                    eb+=f'<h2>{e(title)}</h2><p>{e(r.get("Оригинальное название"))}</p><h3>Сезон {season} · {e(episode_label)}</h3><h3>Материалы ВКонтакте</h3>'
                     eb+=(vk_link(ep.get('Альбом ВК',''),'Фотоальбом ВКонтакте')+vk_link(ep.get('Пост ВК',''),'Публикация ВКонтакте')) if available else '<p>Материалы пока не добавлены.</p>'
                     eb+='<p><a class="vk" id="orderFilm" href="https://vk.me/screencaps" target="_blank" rel="noopener noreferrer">Заказать кадры серии</a></p><nav class="episode-nav" style="clear:both">'
                     if i: eb+=f'<a href="/episodes/{e(eps[i-1]["ID серии"])}.html">← Предыдущая серия</a>'
