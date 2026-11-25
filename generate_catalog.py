@@ -56,6 +56,8 @@ def build(sheets, template):
     for p in ROOT.iterdir():
         if p.is_file() and p.suffix in {'.html','.js','.css','.svg','.png','.jpg','.jpeg','.webp','.ico','.txt','.xml'} and p.name not in {'index (1).html','sitemap.xml'}:
             shutil.copy2(p,OUT/p.name)
+    if (ROOT/'assets').is_dir():
+        shutil.copytree(ROOT/'assets', OUT/'assets', dirs_exist_ok=True)
     (OUT/'.nojekyll').touch()
     urls=[SITE,SITE+'services.html',SITE+'about.html',SITE+'privacy.html']
     links=[]; episode_pages={}; episode_count=0
