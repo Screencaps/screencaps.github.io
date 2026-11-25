@@ -46,3 +46,29 @@ html[data-sc-theme="panem"] #cards .movie .info:after{content:'Открыть к
 @media(hover:hover){html[data-sc-theme="panem"] #cards .movie:hover{transform:translateY(-4px);border-color:#e9bd77;box-shadow:0 10px 32px #0008,0 0 18px #c78d3826}html[data-sc-theme="panem"] #cards .movie:hover .poster img{transform:scale(1.045)}}
 @media(max-width:500px){html[data-sc-theme="panem"] #cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}html[data-sc-theme="panem"] #cards .movie .info{padding:10px;gap:6px}html[data-sc-theme="panem"] #cards .movie .info strong{font-size:16px}html[data-sc-theme="panem"] #cards .movie .info:after{font-size:11px}}
 @media(prefers-reduced-motion:reduce){html[data-sc-theme="panem"] #cards .movie,html[data-sc-theme="panem"] #cards .movie .poster img{transition:none;transform:none!important}}
+
+/* Panem: catalogue discovery controls. */
+html[data-sc-theme="panem"] #catalog #search{min-height:58px;padding:16px 20px 16px 52px;border:1px solid #9c7545;border-radius:12px;background:#211715 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23e9bd77' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m16 16 5 5'/%3E%3C/svg%3E") 17px center/23px no-repeat;box-shadow:0 5px 20px #0003;transition:border-color .2s,box-shadow .2s}
+html[data-sc-theme="panem"] #catalog #search:focus{border-color:#f4d29a;box-shadow:0 0 0 3px #d9a44c26;outline:none}
+html[data-sc-theme="panem"] #categories{gap:9px;margin:17px 0 22px}
+html[data-sc-theme="panem"] #categories button{padding:10px 17px;border-radius:8px;font-weight:600;font-size:14px}
+html[data-sc-theme="panem"] #categories button.active,html[data-sc-theme="panem"] .alphabet button.active{background:linear-gradient(135deg,#f1cc91,#b77b39);color:#21140d;border-color:#e9bd77;font-weight:700}
+html[data-sc-theme="panem"] #catalog .panel:has(.alphabet){padding:24px;background:linear-gradient(145deg,#2a1d18,#1b1414 65%);border:1px solid #805b37;box-shadow:0 8px 30px #0003}
+html[data-sc-theme="panem"] #catalog .panel:has(.alphabet) h2{font:600 24px/1.2 Georgia,serif;margin:0 0 17px}
+html[data-sc-theme="panem"] .alphabet{gap:6px;margin:9px 0}
+html[data-sc-theme="panem"] .alphabet button{min-width:34px;min-height:38px;padding:7px 9px;font-size:13px;border-radius:6px}
+html[data-sc-theme="panem"] #en{padding-bottom:18px;border-bottom:1px solid var(--line)}
+html[data-sc-theme="panem"] .filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:20px;align-items:start}
+html[data-sc-theme="panem"] .filters label{font-size:12px;font-weight:600;color:#e4c39a;gap:8px;min-width:0}
+html[data-sc-theme="panem"] .filters select{width:100%;min-width:0;min-height:44px;font-size:14px;border-radius:7px}
+html[data-sc-theme="panem"] #genres{min-width:0;max-height:130px;min-height:100px}
+html[data-sc-theme="panem"] #genres option:checked{background:#e9bd77;color:#21140d}
+html[data-sc-theme="panem"] #reset{background:transparent;color:#e9bd77;border-color:#9c7545;font-size:13px;min-height:42px}
+html[data-sc-theme="panem"] #reset:hover{background:#664222;color:#fff0dc}
+html[data-sc-theme="panem"] .results{padding:8px 0 15px;border-bottom:1px solid var(--line);margin-bottom:20px}
+html[data-sc-theme="panem"] #count{color:#e9bd77;font-weight:600;margin:0}
+html[data-sc-theme="panem"] .results label{font-size:13px;color:#cbb7a0}
+html[data-sc-theme="panem"] #sort{margin-left:6px;max-width:100%;font-size:14px}
+@media(max-width:800px){html[data-sc-theme="panem"] .filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){html[data-sc-theme="panem"] #catalog .panel:has(.alphabet){padding:14px}html[data-sc-theme="panem"] #catalog .panel:has(.alphabet) h2{font-size:20px}html[data-sc-theme="panem"] #categories{gap:6px}html[data-sc-theme="panem"] #categories button{padding:8px 10px;font-size:12px}html[data-sc-theme="panem"] .alphabet button{min-width:32px;min-height:36px;padding:6px;font-size:12px}html[data-sc-theme="panem"] .filters{gap:12px}html[data-sc-theme="panem"] #catalog #search{font-size:16px}html[data-sc-theme="panem"] .results label{max-width:100%}}
+@media(prefers-reduced-motion:reduce){html[data-sc-theme="panem"] #catalog #search{transition:none}}
