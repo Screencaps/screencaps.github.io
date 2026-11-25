@@ -94,3 +94,5 @@ def build(sheets, template):
                 continue
             r = matches[0]
             poster = poster_for(r)
+if __name__=='__main__':
+    build({name:read_sheet(name) for name in SHEETS},(ROOT/'index.html').read_text(encoding='utf-8'))
