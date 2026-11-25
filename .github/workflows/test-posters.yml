@@ -1,0 +1,25 @@
+name: Test SCREENCAPS Posters
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-posters:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check poster availability
+        run: |
+          for id in 570721 421422 926854 397484 1322678 1403905 841914; do
+            echo "=== Poster $id ==="
+
+            curl -L -sS \
+              --max-time 30 \
+              -o "/tmp/poster-$id.jpg" \
+              -w "HTTP: %{http_code}\nType: %{content_type}\nBytes: %{size_download}\nURL: %{url_effective}\n" \
+              "https://kinopoiskapiunofficial.tech/images/posters/kp/$id.jpg" \
+              || echo "Download failed"
+
+            file "/tmp/poster-$id.jpg" || true
+            echo ""
+          done
