@@ -60,6 +60,20 @@ def build(sheets, template):
         shutil.copytree(ROOT/'assets', OUT/'assets', dirs_exist_ok=True)
     (OUT/'.nojekyll').touch()
     urls=[SITE,SITE+'services.html',SITE+'about.html',SITE+'privacy.html']
+    collection = OUT/'hunger-games.html'
+    if collection.is_file():
+        page = collection.read_text(encoding='utf-8')
+        for year in ('2012','2013','2014','2015','2023','2026'):
+            matches = [r for category,r in rows if category == 'Фильмы' and r.get('Год выпуска','') == year and (r.get('Русское название','').casefold().startswith('голодные игры') or r.get('Оригинальное название','').casefold().startswith('the hunger games'))]
+            if len(matches) != 1:
+                continue
+            r = matches[0]
+            poster = safe_url(r.get('Постер',''))
+            content = (f'<img class="collection-poster" src="{e(poster)}" alt="{e(r.get("Русское название",""))}" loading="lazy">' if poster else '')
+            content += f'<a class="collection-link" href="/films/{e(r["ID"])}.html">Открыть карточку фильма</a>'
+            page = re.sub(r'<!-- PANEM-'+year+r'-START -->.*?<!-- PANEM-'+year+r'-END -->', lambda m: content, page, count=1, flags=re.S)
+        collection.write_text(page,encoding='utf-8')
+        urls.append(SITE+'hunger-games.html')
     links=[]; episode_pages={}; episode_count=0
     for category,r in rows:
         ident=r['ID']; title=r['Русское название']; year=r.get('Год выпуска',''); desc=r.get('Описание',''); poster=safe_url(r.get('Постер','')); path=f'films/{ident}.html'; url=SITE+path; urls.append(url)
