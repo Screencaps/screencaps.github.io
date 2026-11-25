@@ -1,0 +1,2 @@
+# Approved Kinopoisk poster IDs
+# One ID per line
