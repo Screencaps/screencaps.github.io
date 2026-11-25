@@ -31,3 +31,18 @@ html[data-sc-theme="panem"] #sc-consent{background:#211817!important;color:#f5e8
 .theme-toggle{font-size:12px;padding:7px 10px}
 @media(max-width:700px){html[data-sc-theme="panem"] header .topnav{margin-left:0;width:100%}html[data-sc-theme="panem"] .panem-hero{min-height:360px;background-position:center,60% center}.panem-copy{padding:23px}.panem-actions{align-items:stretch;flex-direction:column}.panem-actions a{text-align:center}}
 @media(prefers-reduced-motion:reduce){html[data-sc-theme="panem"]{scroll-behavior:auto}html[data-sc-theme="panem"] .panem-hero:after{animation:none}}
+
+/* Panem: catalogue cards, scoped to the seasonal theme only. */
+html[data-sc-theme="panem"] #cards{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:22px;align-items:stretch}
+html[data-sc-theme="panem"] #cards .movie{display:flex;flex-direction:column;position:relative;min-width:0;border-radius:13px;color:#f5e8d7;background:linear-gradient(155deg,#30211b,#191313 65%);box-shadow:0 5px 18px #0004;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+html[data-sc-theme="panem"] #cards .movie .poster{position:relative;width:100%;flex:none;border-bottom:1px solid var(--line)}
+html[data-sc-theme="panem"] #cards .movie .poster:after{content:'';position:absolute;inset:55% 0 0;background:linear-gradient(transparent,#10090966);pointer-events:none}
+html[data-sc-theme="panem"] #cards .movie .poster img{transition:transform .35s ease}
+html[data-sc-theme="panem"] #cards .movie .info{flex:1;display:flex;flex-direction:column;gap:9px;padding:16px;overflow-wrap:anywhere}
+html[data-sc-theme="panem"] #cards .movie .info strong{font:600 19px/1.28 Georgia,serif;color:#f5deb9}
+html[data-sc-theme="panem"] #cards .movie .info small{font-size:12px;line-height:1.5;color:#cbb7a0}
+html[data-sc-theme="panem"] #cards .movie .info small:first-of-type{color:#e9bd77}
+html[data-sc-theme="panem"] #cards .movie .info:after{content:'Открыть карточку  →';display:block;margin-top:auto;padding-top:12px;border-top:1px solid #69492e;color:#e9bd77;font-size:12px;letter-spacing:.02em}
+@media(hover:hover){html[data-sc-theme="panem"] #cards .movie:hover{transform:translateY(-4px);border-color:#e9bd77;box-shadow:0 10px 32px #0008,0 0 18px #c78d3826}html[data-sc-theme="panem"] #cards .movie:hover .poster img{transform:scale(1.045)}}
+@media(max-width:500px){html[data-sc-theme="panem"] #cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}html[data-sc-theme="panem"] #cards .movie .info{padding:10px;gap:6px}html[data-sc-theme="panem"] #cards .movie .info strong{font-size:16px}html[data-sc-theme="panem"] #cards .movie .info:after{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html[data-sc-theme="panem"] #cards .movie,html[data-sc-theme="panem"] #cards .movie .poster img{transition:none;transform:none!important}}
