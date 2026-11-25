@@ -1,1 +1,33 @@
-/* SCREENCAPS — Sunrise on the Reaping 2026 */
+/* SCREENCAPS: seasonal Panem theme. Classic mode retains the original styles. */
+.panem-hero{display:none}
+html[data-sc-theme="panem"]{color-scheme:dark;scroll-behavior:smooth;--gold:#e9bd77;--muted:#cbb7a0;--line:#69492e;--panel:#211817}
+html[data-sc-theme="panem"] body{background:radial-gradient(ellipse at 85% 0,#401a17 0,transparent 40%),#100c0c;color:#f5e8d7}
+html[data-sc-theme="panem"] header{background:#160e0e;border-color:var(--line)}
+html[data-sc-theme="panem"] header>div{display:flex;align-items:center;flex-wrap:wrap;gap:10px 24px;padding-block:17px}
+html[data-sc-theme="panem"] header h1{font:600 clamp(22px,3vw,32px) Georgia,serif;letter-spacing:2px}
+html[data-sc-theme="panem"] .brand{display:flex;align-items:center;color:var(--gold)}
+html[data-sc-theme="panem"] .brand span{color:var(--gold)}
+html[data-sc-theme="panem"] .brand:before{content:'';display:inline-block;width:42px;height:42px;margin-right:10px;background:url('/assets/hunger-games/emblem.png') center/auto 100% no-repeat;border-radius:50%;flex:none}
+html[data-sc-theme="panem"] header p{margin:0;font-size:13px}
+html[data-sc-theme="panem"] header .topnav{margin-left:auto;gap:12px}
+html[data-sc-theme="panem"] a{color:var(--gold)}
+html[data-sc-theme="panem"] p,html[data-sc-theme="panem"] small,html[data-sc-theme="panem"] footer{color:var(--muted)}
+html[data-sc-theme="panem"] .panem-hero{display:flex;position:relative;isolation:isolate;overflow:hidden;align-items:center;min-height:clamp(320px,39vw,490px);margin:0 0 24px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(90deg,rgba(15,9,9,.97),rgba(15,9,9,.76) 38%,rgba(15,9,9,.18) 80%),url('/assets/hunger-games/banner.png') center/cover no-repeat;box-shadow:0 20px 55px #0005}
+html[data-sc-theme="panem"] .panem-hero:after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background-image:radial-gradient(circle,#ffae55 0 1px,transparent 2px),radial-gradient(circle,#e45b32 0 1px,transparent 2px);background-size:173px 127px,229px 183px;opacity:.4;animation:panem-embers 18s linear infinite}
+@keyframes panem-embers{to{background-position:65px -254px,-55px -366px}}
+.panem-copy{padding:clamp(24px,5vw,65px);max-width:720px}.panem-kicker{color:#efc17c;font-size:11px;font-weight:700;letter-spacing:.18em}.panem-copy h2{font:500 clamp(32px,5vw,66px)/1.05 Georgia,serif;margin:18px 0;color:#f4dec0;text-shadow:0 3px 18px #000}.panem-copy h2 em{font-style:normal;color:#efb866}.panem-copy p{max-width:440px;line-height:1.6}.panem-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;align-items:center}.panem-actions a{padding:11px 14px;border:1px solid #ad8151;border-radius:8px;text-decoration:none}
+html[data-sc-theme="panem"] .panem-actions button{background:linear-gradient(135deg,#f4d29a,#bd8036);color:#23140c;border-color:#f1c47e;font-weight:700}
+html[data-sc-theme="panem"] button,html[data-sc-theme="panem"] input,html[data-sc-theme="panem"] select{background:#2a201e;border-color:#725236;color:#f5e8d7}
+html[data-sc-theme="panem"] button:hover,html[data-sc-theme="panem"] button.active{background:#664222;border-color:#e9bd77}
+html[data-sc-theme="panem"] button:disabled{opacity:.4;cursor:default}html[data-sc-theme="panem"] input::placeholder{color:#bcaa98}
+html[data-sc-theme="panem"] .panel,html[data-sc-theme="panem"] .movie,html[data-sc-theme="panem"] .episode-card{background:var(--panel);border-color:var(--line)}
+html[data-sc-theme="panem"] .movie:hover,html[data-sc-theme="panem"] .episode-card:hover{border-color:var(--gold);box-shadow:0 6px 24px #b77b2926}
+html[data-sc-theme="panem"] .poster{background:linear-gradient(145deg,#503121,#160d0c);color:var(--gold)}
+html[data-sc-theme="panem"] h2,html[data-sc-theme="panem"] h3{color:#efd2a4}html[data-sc-theme="panem"] .stats b{color:var(--gold)}
+html[data-sc-theme="panem"] details,html[data-sc-theme="panem"] footer{border-color:var(--line)}
+html[data-sc-theme="panem"] footer{border-top:1px solid var(--line)}html[data-sc-theme="panem"] a.vk{background:#61401f;color:#fff0dc;border:1px solid #a77742}
+html[data-sc-theme="panem"] :focus-visible{outline:2px solid #ffce85;outline-offset:3px}
+html[data-sc-theme="panem"] #sc-consent{background:#211817!important;color:#f5e8d7!important;border-color:var(--line)!important}
+.theme-toggle{font-size:12px;padding:7px 10px}
+@media(max-width:700px){html[data-sc-theme="panem"] header .topnav{margin-left:0;width:100%}html[data-sc-theme="panem"] .panem-hero{min-height:360px;background-position:center,60% center}.panem-copy{padding:23px}.panem-actions{align-items:stretch;flex-direction:column}.panem-actions a{text-align:center}}
+@media(prefers-reduced-motion:reduce){html[data-sc-theme="panem"]{scroll-behavior:auto}html[data-sc-theme="panem"] .panem-hero:after{animation:none}}
