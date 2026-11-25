@@ -33,8 +33,19 @@ def safe_url(s, vk=False):
         if u.scheme=='https' and u.hostname and (not vk or u.hostname in {'vk.ru','vk.com','m.vk.ru','m.vk.com'}): return s
     except ValueError: pass
     return ''
+def vk_urls(value):
+    result=[]
+    for raw in str(value or '').split():
+        url=safe_url(raw,True)
+        if not url: continue
+        u=urlsplit(url)
+        if u.username or u.password: continue
+        if url not in result: result.append(url)
+    return result
+
 def vk_link(s,label):
-    return f'<a class="vk" href="{e(s)}" target="_blank" rel="noopener noreferrer">{e(label)}</a>' if safe_url(s,True) else ''
+    urls=vk_urls(s)
+    return ''.join(f'<a class="vk" href="{e(url)}" target="_blank" rel="noopener noreferrer">{e(label + (" №"+str(i) if len(urls)>1 else ""))}</a>' for i,url in enumerate(urls,1))
 def filter_link(key,value,label): return f'<a class="chip" href="/?{e(urlencode({key:value}))}">{e(label)}</a>'
 def number_key(s): return (0,int(s)) if s.isdigit() else (1,s)
 
@@ -70,6 +81,8 @@ def build(sheets, template):
             r = matches[0]
             poster = safe_url(r.get('Постер',''))
             content = (f'<img class="collection-poster" src="{e(poster)}" alt="{e(r.get("Русское название",""))}" loading="lazy">' if poster else '')
+            album_count = len(vk_urls(r.get('Альбом ВК','')))
+            content += f'<p class="collection-status">Фотоальбомов: {album_count}</p>'
             content += f'<a class="collection-link" href="/films/{e(r["ID"])}.html">Открыть карточку фильма</a>'
             page = re.sub(r'<!-- PANEM-'+year+r'-START -->.*?<!-- PANEM-'+year+r'-END -->', lambda m: content, page, count=1, flags=re.S)
         collection.write_text(page,encoding='utf-8')
@@ -104,7 +117,7 @@ def build(sheets, template):
                 if not re.fullmatch(r'[A-Za-z0-9_-]{1,150}',eid) or not season.isdigit() or not num.isdigit() or int(season)<1 or int(num)<0: raise ValueError(f'Некорректная серия: {eid}')
                 if eid in episode_pages or (int(season),int(num)) in used: raise ValueError(f'Повтор серии: {eid}')
                 used.add((int(season),int(num))); episode_pages[eid]='/episodes/'+eid+'.html'; groups.setdefault(int(season),[]).append(ep)
-            def ready(ep): return published(ep) and bool(safe_url(ep.get('Альбом ВК',''),True) or safe_url(ep.get('Пост ВК',''),True))
+            def ready(ep): return published(ep) and bool(vk_urls(ep.get('Альбом ВК','')) or vk_urls(ep.get('Пост ВК','')))
             all_eps=[ep for eps in groups.values() for ep in eps]
             body+=f'<h3 style="clear:both">Сезоны и серии</h3><p>Добавлено {sum(ready(ep) for ep in all_eps)} из {len(all_eps)} серий</p>'
             for season,eps in sorted(groups.items()):
