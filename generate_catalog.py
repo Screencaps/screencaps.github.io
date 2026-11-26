@@ -50,6 +50,29 @@ def vk_link(s,label):
 def filter_link(key,value,label): return f'<a class="chip" href="/?{e(urlencode({key:value}))}">{e(label)}</a>'
 def number_key(s): return (0,int(s)) if s.isdigit() else (1,s)
 
+# Retired SCREENCAPS IDs: keep old static URLs without indexing duplicates.
+def write_merged_redirects(out):
+    redirects = {'films/MS00059.html': 'films/MS00058.html'}
+    redirects.update({f'episodes/MS00059-S01E{i:02d}.html':
+                      f'episodes/MS00058-S02E{i:02d}.html' for i in range(1,44)})
+    # Validate the whole plan before writing any redirect.
+    for old, new in redirects.items():
+        if (out / old).exists():
+            raise ValueError(f'Зарезервированный адрес уже занят: {old}')
+        if not (out / new).is_file():
+            raise ValueError(f'Нет целевой страницы перенаправления: {new}')
+    for old, new in redirects.items():
+        target = e(SITE + new)
+        page = (f'<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+                f'<title>Страница перенесена — SCREENCAPS</title>'
+                f'<meta name="robots" content="noindex,follow">'
+                f'<link rel="canonical" href="{target}">'
+                f'<meta http-equiv="refresh" content="0; url={target}">'
+                f'</head><body><p>Страница перенесена. '
+                f'<a href="{target}">Перейти к новой странице</a>.</p></body></html>')
+        (out / old).write_text(page, encoding='utf-8')
+    return len(redirects)
+
 def build(sheets, template):
     head=template.split('</head>',1)[0]
     if 'scTrackView' not in head: raise ValueError('Не найден код аналитики в исходном index.html')
@@ -174,6 +197,8 @@ def build(sheets, template):
         body+='<p><button type="button" onclick="navigator.clipboard.writeText(location.href).then(()=>this.textContent=\'Ссылка скопирована\').catch(()=>prompt(\'Ссылка\',location.href))">Скопировать ссылку на карточку</button></p></article></section></main>'
         (OUT/path).write_text(h+body+footer+banner+'</body></html>',encoding='utf-8')
         links.append((ident,path,title))
+    redirect_count = write_merged_redirects(OUT)
+    print(f"Generated {redirect_count} merged redirects")
     # Keep the live catalogue and old query URLs; provide stable links for generated records.
     import json
     mapping=json.dumps({ident:'/'+path for ident,path,title in links},ensure_ascii=True)
@@ -199,6 +224,8 @@ def build(sheets, template):
     # A real HTML directory gives crawlers links even without JavaScript.
     directory='<section class="panel"><details><summary>Все страницы произведений</summary>'+''.join(f'<p><a href="/{e(path)}">{e(title)}</a></p>' for _,path,title in links)+'</details></section>'
     index=index.replace('</main>',directory+'</main>',1)
+    legacy_redirect = """<script>(function(){const p=new URLSearchParams(location.search);if(p.get('film')!=='MS00059')return;const ep=p.get('episode');const m=/^MS00059-S01E(0[1-9]|[1-3][0-9]|4[0-3])$/.exec(ep||'');location.replace(m?'/episodes/MS00058-S02E'+m[1]+'.html':'/films/MS00058.html');})();</script>"""
+    index=index.replace('</head>',legacy_redirect+'</head>',1)
     (OUT/'index.html').write_text(index,encoding='utf-8')
     ns='http://www.sitemaps.org/schemas/sitemap/0.9'; ET.register_namespace('',ns)
     tree=ET.Element(f'{{{ns}}}urlset')
