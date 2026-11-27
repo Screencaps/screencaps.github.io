@@ -141,7 +141,7 @@ def build(sheets, template):
         h+=f'<link rel="canonical" href="{e(url)}"><meta property="og:type" content="website"><meta property="og:title" content="{e(page_title)}"><meta property="og:description" content="{e(summary)}"><meta property="og:url" content="{e(url)}">'
         if poster: h+=f'<meta property="og:image" content="{e(poster)}">'
         h+='</head><body>'
-        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/">← Назад к каталогу</a><article class="panel">'
+        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/" data-sc-back>← Назад к каталогу</a><article class="panel">'
         if poster: body+=f'<div class="poster"><img src="{e(poster)}" onerror="{poster_error(r)}" alt="{e(title)}"></div>'
         body+=f'<h2>{e(title)}</h2><p>{e(r.get("Оригинальное название"))}</p><div class="detailmeta">'
         if year: body+=filter_link('year',year,year+('–'+r['Год окончания'] if r.get('Год окончания') else ''))
@@ -194,7 +194,7 @@ def build(sheets, template):
         else:
             body+='<h3>Материалы ВКонтакте</h3>'+vk_link(r.get('Альбом ВК',''),'Фотоальбом ВКонтакте')+vk_link(r.get('Пост ВК',''),'Публикация ВКонтакте')
         body+='<p><a class="vk" id="orderFilm" href="https://vk.me/screencaps" target="_blank" rel="noopener noreferrer">Заказать кадры</a></p>'
-        body+='<p><button type="button" onclick="navigator.clipboard.writeText(location.href).then(()=>this.textContent=\'Ссылка скопирована\').catch(()=>prompt(\'Ссылка\',location.href))">Скопировать ссылку на карточку</button></p></article></section></main>'
+        body+='<p><button type="button" onclick="navigator.clipboard.writeText(location.origin+location.pathname).then(()=>this.textContent=\'Ссылка скопирована\').catch(()=>prompt(\'Ссылка\',location.origin+location.pathname))">Скопировать ссылку на карточку</button></p></article></section></main>'
         (OUT/path).write_text(h+body+footer+banner+'</body></html>',encoding='utf-8')
         links.append((ident,path,title))
     redirect_count = write_merged_redirects(OUT)
@@ -210,17 +210,12 @@ def build(sheets, template):
     ep_mapping=json.dumps(episode_pages,ensure_ascii=True).replace('<','\\u003c')
     old_ep="const episodeURL=(f,ep)=>'/?film='+encodeURIComponent(f.id)+'&episode='+encodeURIComponent(ep.id);"
     index=index.replace(old_ep,"const episodePages=new Map(Object.entries("+ep_mapping+"));const episodeURL=(f,ep)=>episodePages.get(ep.id)||'/?film='+encodeURIComponent(f.id)+'&episode='+encodeURIComponent(ep.id);",1)
-    old_click="if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();history.pushState(null,'',filmURL(f));route()"
-    if old_click not in index: raise ValueError('Не найден обработчик карточек')
-    index=index.replace(old_click,"if(staticPages.has(f.id)||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();history.pushState(null,'',filmURL(f));route()",1)
-    marker='recent();render();route();'
-    if marker not in index: raise ValueError('Не найдено завершение загрузки каталога')
+    if 'openCatalogCard(e,f)' not in index: raise ValueError('Не найден обработчик навигации')
     poster_json=json.dumps(poster_map,ensure_ascii=True).replace('<','\\u003c')
     old_poster = "function poster(f){const p=el('div','🎬','poster');if(f.poster&&/^https?:\\/\\//i.test(f.poster)){const im=el('img');im.src=f.poster;im.alt=f.title;im.loading='lazy';im.onerror=()=>im.remove();p.append(im);p.firstChild.remove()}return p}"
     if old_poster not in index: raise ValueError('Не найдена функция постеров в index.html')
     new_poster = "const localPosters=new Map(Object.entries("+poster_json+"));function poster(f){const p=el('div','','poster'),im=el('img');const candidates=[...new Set([localPosters.get(f.id),f.poster,'/assets/posters/placeholder.svg'].filter(x=>x&&(/^https:\\/\\//i.test(x)||x==='/assets/posters/placeholder.svg')))];let i=0;im.alt=f.title;im.loading='lazy';im.onerror=()=>{i++;if(i<candidates.length)im.src=candidates[i];else{im.remove();p.textContent='🎬'}};p.append(im);im.src=candidates[0];return p}"
     index=index.replace(old_poster,new_poster,1)
-    index=index.replace(marker,"const filters=new URLSearchParams(location.search);if(cats.includes(filters.get('category')))category=filters.get('category');if(filters.has('year'))$('from').value=$('to').value=filters.get('year');if(filters.has('genre'))for(const o of $('genres').options)o.selected=o.value.toLowerCase()===filters.get('genre').toLowerCase();"+marker,1)
     # A real HTML directory gives crawlers links even without JavaScript.
     directory='<section class="panel"><details><summary>Все страницы произведений</summary>'+''.join(f'<p><a href="/{e(path)}">{e(title)}</a></p>' for _,path,title in links)+'</details></section>'
     index=index.replace('</main>',directory+'</main>',1)
