@@ -120,8 +120,33 @@ def write_updates_page(head, footer, banner, items):
     (OUT/'updates.html').write_text(h+body+footer+banner+'</body></html>',encoding='utf-8')
 
 
+
+# Browser-local favorites, recent works and random selection.
+def write_library(head, footer, banner, rows, sheets, episode_pages, poster_for):
+    import json
+    def encoded(value):
+        return json.dumps(value, ensure_ascii=True).replace('<', '\\u003c')
+    records = [dict(id=r['ID'], title=r['Русское название'], category=c, year=r.get('Год выпуска',''), href='/films/'+r['ID']+'.html', poster=poster_for(r)) for c,r in rows]
+    parents = {r['ID серии']:r['ID произведения'] for r in sheets['Серии'] if r.get('ID серии') in episode_pages}
+    js = LIBRARY_JS.replace('SC_DATA', encoded(records), 1).replace('SC_EPISODES', encoded(parents), 1)
+    (OUT/'sc-library.js').write_text(js, encoding='utf-8')
+    for mode,title,empty in [('favorites','Избранное','В избранном пока ничего нет.'),('history','История просмотров','История пока пуста.')]:
+        h=re.sub(r'<title>.*?</title>', lambda m:'<title>'+title+' — SCREENCAPS</title>',head,count=1,flags=re.S)
+        h=re.sub(r'<meta name="robots"[^>]*>','',h,flags=re.I)
+        h=re.sub(r'<meta name="description"[^>]*>','',h,flags=re.I)
+        h=h.replace('href="favicon.svg"','href="/favicon.svg"').replace('src="vk-config.js"','src="/vk-config.js"')
+        h+='<meta name="robots" content="noindex,follow"></head><body>'
+        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><nav class="topnav"><a href="/">Каталог</a><a href="/updates.html">Обновления</a><a href="/hunger-games.html">Голодные игры</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a href="/team.html">В команду</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><h2>'+title+'</h2><p>Список хранится в этом браузере. Регистрация не требуется.</p><p id="sc-storage-notice" hidden>Хранилище браузера недоступно: изменения могут не сохраниться.</p><div class="panel sc-library-controls"><label>Категория <select id="sc-library-category"><option value="">Все категории</option>'
+        body+=''.join('<option>'+e(c)+'</option>' for c in list(SHEETS)[:5])
+        body+='</select></label><label>Сортировка <select id="sc-library-sort"><option value="new">Сначала последние</option><option value="old">Сначала ранние</option><option value="az">По названию</option></select></label><button type="button" id="sc-library-clear">Очистить список</button></div><p id="sc-library-count" aria-live="polite"></p><p id="sc-library-missing"></p><p id="sc-library-empty" hidden>'+empty+'</p><div id="sc-library-grid" class="sc-library-grid"></div><noscript>Для работы списка включите JavaScript.</noscript></main>'
+        (OUT/(mode+'.html')).write_text(h+body+footer+banner+'</body></html>',encoding='utf-8')
+
+LIBRARY_JS = '(function(){\'use strict\';\nconst items=SC_DATA, byId=new Map(items.map(x=>[x.id,x])), episodes=SC_EPISODES;\nconst keys={favorites:\'sc_favorites_v1\',history:\'sc_history_v1\'}, memory={}, failed=new Set();\nconst mode=location.pathname===\'/favorites.html\'?\'favorites\':location.pathname===\'/history.html\'?\'history\':null;\nfunction canonical(id){return id===\'MS00059\'?\'MS00058\':id}\nfunction read(k){let raw;try{raw=failed.has(k)?memory[k]:localStorage.getItem(keys[k]);}catch{raw=memory[k];failed.add(k)}let a;try{a=JSON.parse(raw||\'[]\')}catch{a=[]}const m=new Map();for(const x of Array.isArray(a)?a:[]){if(!x||typeof x.id!==\'string\'||!Number.isFinite(x.at))continue;const id=canonical(x.id);if(!m.has(id)||m.get(id)<x.at)m.set(id,x.at)}return [...m].map(([id,at])=>({id,at})).sort((a,b)=>b.at-a.at)}\nfunction write(k,a){const raw=JSON.stringify(a);memory[k]=raw;try{localStorage.setItem(keys[k],raw);failed.delete(k)}catch{failed.add(k)}sync();if(mode===k)render();}\nfunction node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el}\nfunction visible(k){return read(k).filter(x=>byId.has(x.id))}\nfunction toggle(id){id=canonical(id);if(!byId.has(id))return;const a=read(\'favorites\');write(\'favorites\',a.some(x=>x.id===id)?a.filter(x=>x.id!==id):[{id,at:Date.now()},...a])}\nfunction button(id,compact){const b=node(\'button\',\'\',compact?\'sc-fav sc-fav-mini\':\'sc-fav\');b.type=\'button\';b.dataset.scFav=id;b.dataset.compact=compact?\'1\':\'0\';b.onclick=()=>toggle(id);paint(b,new Set(read(\'favorites\').map(x=>x.id)));return b}\nfunction paint(b,set){const on=set.has(b.dataset.scFav);b.setAttribute(\'aria-pressed\',String(on));b.title=on?\'Удалить из избранного\':\'Добавить в избранное\';b.setAttribute(\'aria-label\',b.title);b.textContent=(on?\'♥\':\'♡\')+(b.dataset.compact===\'1\'?\'\':on?\' В избранном\':\' В избранное\')}\nfunction sync(){const set=new Set(read(\'favorites\').map(x=>x.id));document.querySelectorAll(\'[data-sc-fav]\').forEach(b=>paint(b,set));for(const k of Object.keys(keys)){const n=document.querySelector(\'[data-sc-count="\'+k+\'"]\');if(n)n.textContent=String(visible(k).length)}const notice=document.getElementById(\'sc-storage-notice\');if(notice)notice.hidden=!failed.size}\nfunction visit(id){id=canonical(id);if(!byId.has(id))return;write(\'history\',[{id,at:Date.now()},...read(\'history\').filter(x=>x.id!==id)].slice(0,500))}\nwindow.scLibraryCard=function(a,id){if(!byId.has(id))return a;const wrap=node(\'div\',undefined,\'sc-card-wrap\');wrap.append(a,button(id,true));return wrap};\nwindow.scLibraryDetail=function(box,id){id=canonical(id);if(!byId.has(id))return;const h=box.querySelector(\'h2\');if(h&&!box.querySelector(\'[data-sc-fav]\'))h.after(button(id,false));visit(id)};\nfunction current(){const p=location.pathname,m=/^\\/films\\/([\\w-]+)\\.html$/.exec(p),ep=/^\\/episodes\\/([\\w-]+)\\.html$/.exec(p);return m?canonical(m[1]):ep?episodes[ep[1]]:new URLSearchParams(location.search).get(\'film\')||\'\'}\nfunction addNav(){for(const nav of document.querySelectorAll(\'header .topnav\')){if(nav.querySelector(\'[data-sc-library-nav]\'))continue;for(const [k,label] of [[\'favorites\',\'Избранное\'],[\'history\',\'История\']]){const a=node(\'a\',label+\' (\');a.href=\'/\'+k+\'.html\';a.dataset.scLibraryNav=\'1\';if(mode===k)a.setAttribute(\'aria-current\',\'page\');const count=node(\'span\',\'0\');count.dataset.scCount=k;a.append(count,document.createTextNode(\')\'));nav.append(a)}const b=node(\'button\',\'Случайное произведение\');b.type=\'button\';b.disabled=!items.length;b.onclick=()=>{const others=items.filter(x=>x.id!==current());const pool=others.length?others:items;if(pool.length)location.assign(pool[Math.floor(Math.random()*pool.length)].href)};nav.append(b)}}\nfunction render(){const grid=document.getElementById(\'sc-library-grid\');if(!grid||!mode)return;const category=document.getElementById(\'sc-library-category\').value,sort=document.getElementById(\'sc-library-sort\').value;const all=read(mode), list=all.filter(x=>byId.has(x.id)).map(x=>({...byId.get(x.id),at:x.at})).filter(x=>!category||x.category===category);if(sort===\'az\')list.sort((a,b)=>a.title.localeCompare(b.title,\'ru\'));if(sort===\'old\')list.sort((a,b)=>a.at-b.at);grid.replaceChildren();document.getElementById(\'sc-library-count\').textContent=\'Найдено: \'+list.length;document.getElementById(\'sc-library-empty\').hidden=!!list.length;document.getElementById(\'sc-library-missing\').textContent=all.length-visible(mode).length?\'Недоступных в текущем каталоге записей: \'+(all.length-visible(mode).length):\'\';for(const x of list){const a=node(\'a\',undefined,\'movie\');a.href=x.href;const p=node(\'div\',undefined,\'poster\'),im=node(\'img\');im.alt=x.title;im.loading=\'lazy\';im.onerror=()=>{im.onerror=null;im.src=\'/assets/posters/placeholder.svg\'};im.src=x.poster;p.append(im);const info=node(\'div\',undefined,\'info\');info.append(node(\'strong\',x.title),node(\'small\',[x.year,x.category].filter(Boolean).join(\' · \')),node(\'small\',new Date(x.at).toLocaleString(\'ru-RU\')));a.append(p,info);const wrap=window.scLibraryCard(a,x.id);if(mode===\'history\'){const remove=node(\'button\',\'Удалить из истории\',\'sc-history-remove\');remove.type=\'button\';remove.onclick=()=>write(mode,read(mode).filter(y=>y.id!==x.id));wrap.append(remove)}grid.append(wrap)}sync()}\nfunction init(){addNav();if(mode){document.getElementById(\'sc-library-category\').onchange=render;document.getElementById(\'sc-library-sort\').onchange=render;document.getElementById(\'sc-library-clear\').onclick=()=>{if(read(mode).length&&confirm(\'Очистить весь список?\'))write(mode,[])};render()}else if(/^\\/(films|episodes)\\//.test(location.pathname)){const box=document.querySelector(\'#detail article.panel\');if(box)window.scLibraryDetail(box,current())}sync()}\nwindow.addEventListener(\'storage\',e=>{if(e.key===null||Object.values(keys).includes(e.key)){sync();if(mode)render()}});document.addEventListener(\'DOMContentLoaded\',init);window.addEventListener(\'pageshow\',()=>{sync();if(mode)render()});\n})();\n'
+LIBRARY_STYLE = '<style>.sc-card-wrap{position:relative;min-width:0;display:flex;flex-direction:column;gap:5px}.sc-card-wrap>.movie{flex:1}.sc-fav-mini{position:absolute;top:8px;right:8px;z-index:2;min-width:44px;min-height:44px;font-size:24px;line-height:1;background:#171c26;color:#fff;border:1px solid #aaa}.sc-fav[aria-pressed=true]{color:#ff8490}.sc-fav:not(.sc-fav-mini){margin:5px 0 12px}.sc-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px}.sc-library-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.sc-history-remove{font-size:13px}.sc-library-grid .movie{min-width:0}.sc-library-grid .info{overflow-wrap:anywhere}@media(max-width:500px){.sc-library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>'
+LIBRARY_TAG = LIBRARY_STYLE + '<script src="/sc-library.js"></script>'
+
 def build(sheets, template):
-    head=template.split('</head>',1)[0]
+    head=template.split('</head>',1)[0]+LIBRARY_TAG
     if 'scTrackView' not in head: raise ValueError('Не найден код аналитики в исходном index.html')
     banner=template[template.index('<div id="sc-consent"'):].split('</body>',1)[0]
     footer=re.search(r'<footer>.*?</footer>',template,re.S).group()
@@ -152,8 +177,15 @@ def build(sheets, template):
                 return block
             return block.replace('</nav>', '<a href="/updates.html">Обновления</a><a href="/team.html">В команду</a></nav>', 1)
         updated = re.sub(r'<nav\b[^>]*class="[^"]*\btopnav\b[^"]*"[^>]*>.*?</nav>', add_team_nav, page_text, flags=re.S)
+        if '<nav' in updated and '</head>' in updated and 'sc-library.js' not in updated:
+            updated=updated.replace('</head>',LIBRARY_TAG+'</head>',1)
         if updated != page_text:
             page_path.write_text(updated, encoding='utf-8')
+    team_page=OUT/'team.html'
+    if team_page.is_file():
+        text=team_page.read_text(encoding='utf-8')
+        if '</head>' in text and 'sc-library.js' not in text:
+            team_page.write_text(text.replace('</head>',LIBRARY_TAG+'</head>',1),encoding='utf-8')
     poster_dir = OUT / 'assets' / 'posters'
     poster_dir.mkdir(parents=True, exist_ok=True)
     placeholder = poster_dir / 'placeholder.svg'
@@ -287,6 +319,14 @@ def build(sheets, template):
     index=index.replace('</main>',directory+'</main>',1)
     legacy_redirect = """<script>(function(){const p=new URLSearchParams(location.search);if(p.get('film')!=='MS00059')return;const ep=p.get('episode');const m=/^MS00059-S01E(0[1-9]|[1-3][0-9]|4[0-3])$/.exec(ep||'');location.replace(m?'/episodes/MS00058-S02E'+m[1]+'.html':'/films/MS00058.html');})();</script>"""
     index=index.replace('</head>',legacy_redirect+'</head>',1)
+    old_card="$('cards').append(c)"
+    old_detail="d.append(box);window.scrollTo(0,0)"
+    if index.count(old_card)!=1 or index.count(old_detail)!=1:
+        raise ValueError('Не найдены точки подключения избранного и истории в index.html')
+    index=index.replace(old_card,"$('cards').append(window.scLibraryCard?window.scLibraryCard(c,f.id):c)",1)
+    index=index.replace(old_detail,"d.append(box);window.scLibraryDetail?.(box,f.id);window.scrollTo(0,0)",1)
+    index=index.replace('</head>',LIBRARY_TAG+'</head>',1)
+    write_library(head, footer, banner, rows, sheets, episode_pages, poster_for)
     (OUT/'index.html').write_text(index,encoding='utf-8')
     ns='http://www.sitemaps.org/schemas/sitemap/0.9'; ET.register_namespace('',ns)
     tree=ET.Element(f'{{{ns}}}urlset')
