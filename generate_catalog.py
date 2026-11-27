@@ -1,3 +1,4 @@
+from datetime import datetime
 import csv
 import io
 import re
@@ -21,7 +22,7 @@ def read_sheet(name):
     with urllib.request.urlopen(req, timeout=60) as response:
         text = response.read().decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
-    required = {'Жанр'} if name == 'Жанры' else ({'ID серии','ID произведения','Сезон','Номер серии','Статус','Альбом ВК','Пост ВК'} if name == 'Серии' else {'ID','Русское название','Статус'})
+    required = {'Жанр'} if name == 'Жанры' else ({'ID серии','ID произведения','Сезон','Номер серии','Статус','Альбом ВК','Пост ВК','Дата обновления материалов'} if name == 'Серии' else {'ID','Русское название','Статус'})
     if not required.issubset(set(reader.fieldnames or [])):
         raise ValueError(f'Неверные заголовки листа: {name}')
     return [{k:(v or '').strip() for k,v in row.items() if k is not None} for row in reader]
@@ -73,6 +74,52 @@ def write_merged_redirects(out):
         (out / old).write_text(page, encoding='utf-8')
     return len(redirects)
 
+def update_date(raw):
+    raw = str(raw or '').strip()
+    for fmt in ('%d.%m.%Y %H:%M:%S', '%d.%m.%Y %H:%M', '%d.%m.%Y', '%d/%m/%Y', '%Y-%m-%d', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            pass
+    return None
+
+
+def collect_updates(rows, episodes, episode_pages):
+    parents = {r['ID']: (category, r) for category, r in rows}
+    items = []
+    def add(date, category, kind, label, href):
+        if date:
+            items.append(dict(key=date.isoformat(), date=date.strftime('%d.%m.%Y'), category=category, kind=kind, label=label, href=href))
+    for category, r in rows:
+        add(update_date(r.get('Дата добавления')), category, 'work', r['Русское название'] + (' (' + r['Год выпуска'] + ')' if r.get('Год выпуска') else ''), '/films/'+r['ID']+'.html')
+    for ep in episodes:
+        ident=ep.get('ID серии',''); parent=parents.get(ep.get('ID произведения',''))
+        if not parent or ident not in episode_pages or not published(ep) or not (vk_urls(ep.get('Альбом ВК','')) or vk_urls(ep.get('Пост ВК',''))):
+            continue
+        category, r=parent
+        add(update_date(ep.get('Дата обновления материалов')), category, 'episode', r['Русское название']+' — сезон '+ep['Сезон']+', серия '+ep['Номер серии'], episode_pages[ident])
+    return sorted(items, key=lambda item:(item['key'],item['href']), reverse=True)
+
+
+def write_updates_page(head, footer, banner, items):
+    h=re.sub(r'<title>.*?</title>', '<title>Последние обновления — SCREENCAPS</title>', head, count=1, flags=re.S)
+    h=re.sub(r'<meta name="description"[^>]*>', '<meta name="description" content="Новые произведения и обновления материалов серий SCREENCAPS.">', h, count=1)
+    h=h.replace('href="favicon.svg"','href="/favicon.svg"').replace('src="vk-config.js"','src="/vk-config.js"')
+    h+='<link rel="canonical" href="https://screencaps.github.io/updates.html"><style>.update-row{padding:12px 0;border-bottom:1px solid #45454a}.update-row a{display:block;font-weight:600}.update-controls{display:flex;gap:12px;flex-wrap:wrap}.update-day{margin:22px 0}</style></head><body>'
+    body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><nav class="topnav"><a href="/">Каталог</a><a href="/updates.html" aria-current="page">Обновления</a><a href="/hunger-games.html">Голодные игры</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a href="/team.html">В команду</a><a href="https://vk.ru/screencaps" id="groupLink" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><h2>Последние обновления</h2><p>Новые произведения и обновлённые материалы серий. Даты берутся из каталога. Старые серии без подтверждённой даты обновления не включены.</p><div class="panel update-controls"><label>Тип <select id="updateKind"><option value="">Все обновления</option><option value="work">Новые произведения</option><option value="episode">Материалы серий</option></select></label><label>Категория <select id="updateCategory"><option value="">Все категории</option>'
+    body+=''.join(f'<option>{e(cat)}</option>' for cat in list(SHEETS)[:5])+'</select></label></div><p id="updateCount" aria-live="polite"></p>'
+    days={}
+    for item in items: days.setdefault(item['date'], []).append(item)
+    for day, group in days.items():
+        body+=f'<section class="panel update-day"><h3>{e(day)}</h3>'
+        for item in group:
+            label='Новое произведение' if item['kind']=='work' else 'Обновлены материалы серии'
+            body+=f'<article class="update-row" data-kind="{e(item["kind"])}" data-category="{e(item["category"])}"><small>{label} · {e(item["category"])}</small><a href="{e(item["href"])}">{e(item["label"])}</a></article>'
+        body+='</section>'
+    body+='<p id="updateEmpty" hidden>Нет обновлений по выбранным параметрам.</p></main><script>function filterUpdates(){const k=document.getElementById("updateKind").value,c=document.getElementById("updateCategory").value;let n=0;for(const day of document.querySelectorAll(".update-day")){let m=0;for(const row of day.querySelectorAll(".update-row")){row.hidden=!!((k&&row.dataset.kind!==k)||(c&&row.dataset.category!==c));if(!row.hidden)m++}day.hidden=!m;n+=m}document.getElementById("updateCount").textContent="Обновлений: "+n;document.getElementById("updateEmpty").hidden=!!n}document.getElementById("updateKind").onchange=filterUpdates;document.getElementById("updateCategory").onchange=filterUpdates;filterUpdates();</script>'
+    (OUT/'updates.html').write_text(h+body+footer+banner+'</body></html>',encoding='utf-8')
+
+
 def build(sheets, template):
     head=template.split('</head>',1)[0]
     if 'scTrackView' not in head: raise ValueError('Не найден код аналитики в исходном index.html')
@@ -103,7 +150,7 @@ def build(sheets, template):
             block = match.group(0)
             if '/team.html' in block:
                 return block
-            return block.replace('</nav>', '<a href="/team.html">В команду</a></nav>', 1)
+            return block.replace('</nav>', '<a href="/updates.html">Обновления</a><a href="/team.html">В команду</a></nav>', 1)
         updated = re.sub(r'<nav\b[^>]*class="[^"]*\btopnav\b[^"]*"[^>]*>.*?</nav>', add_team_nav, page_text, flags=re.S)
         if updated != page_text:
             page_path.write_text(updated, encoding='utf-8')
@@ -126,7 +173,7 @@ def build(sheets, template):
         import json
         return e('const a='+json.dumps(candidates,ensure_ascii=True)+';const i=Number(this.dataset.attempt||0);if(i>=a.length){this.onerror=null;return;}this.dataset.attempt=i+1;this.src=a[i];')
     (OUT/'.nojekyll').touch()
-    urls=[SITE,SITE+'services.html',SITE+'about.html',SITE+'privacy.html',SITE+'team.html']
+    urls=[SITE,SITE+'services.html',SITE+'about.html',SITE+'privacy.html',SITE+'team.html',SITE+'updates.html']
     collection = OUT/'hunger-games.html'
     if collection.is_file():
         page = collection.read_text(encoding='utf-8')
@@ -154,7 +201,7 @@ def build(sheets, template):
         h+=f'<link rel="canonical" href="{e(url)}"><meta property="og:type" content="website"><meta property="og:title" content="{e(page_title)}"><meta property="og:description" content="{e(summary)}"><meta property="og:url" content="{e(url)}">'
         if poster: h+=f'<meta property="og:image" content="{e(poster)}">'
         h+='</head><body>'
-        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a href="/team.html">В команду</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/" data-sc-back>← Назад к каталогу</a><article class="panel">'
+        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a href="/updates.html">Обновления</a><a href="/team.html">В команду</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/" data-sc-back>← Назад к каталогу</a><article class="panel">'
         if poster: body+=f'<div class="poster"><img src="{e(poster)}" onerror="{poster_error(r)}" alt="{e(title)}"></div>'
         body+=f'<h2>{e(title)}</h2><p>{e(r.get("Оригинальное название"))}</p><div class="detailmeta">'
         if year: body+=filter_link('year',year,year+('–'+r['Год окончания'] if r.get('Год окончания') else ''))
@@ -210,6 +257,9 @@ def build(sheets, template):
         body+='<p><button type="button" onclick="navigator.clipboard.writeText(location.origin+location.pathname).then(()=>this.textContent=\'Ссылка скопирована\').catch(()=>prompt(\'Ссылка\',location.origin+location.pathname))">Скопировать ссылку на карточку</button></p></article></section></main>'
         (OUT/path).write_text(h+body+footer+banner+'</body></html>',encoding='utf-8')
         links.append((ident,path,title))
+    updates=collect_updates(rows, sheets['Серии'], episode_pages)
+    write_updates_page(head, footer, banner, updates)
+    print(f'Generated {len(updates)} update entries')
     redirect_count = write_merged_redirects(OUT)
     print(f"Generated {redirect_count} merged redirects")
     # Keep the live catalogue and old query URLs; provide stable links for generated records.
@@ -220,6 +270,9 @@ def build(sheets, template):
     new="const staticPages=new Map(Object.entries("+mapping+"));const filmURL=f=>staticPages.get(f.id)||'?film='+encodeURIComponent(f.id);"
     if old not in template: raise ValueError('Не найдена функция ссылок каталога')
     index=template.replace(old,new,1)
+    update_json=json.dumps(updates[:5],ensure_ascii=True).replace('<','\\u003c')
+    if 'function recent(){' not in index: raise ValueError('Не найдена лента на главной')
+    index=index.replace('function recent(){','const scUpdates='+update_json+';function recent(){',1)
     ep_mapping=json.dumps(episode_pages,ensure_ascii=True).replace('<','\\u003c')
     old_ep="const episodeURL=(f,ep)=>'/?film='+encodeURIComponent(f.id)+'&episode='+encodeURIComponent(ep.id);"
     index=index.replace(old_ep,"const episodePages=new Map(Object.entries("+ep_mapping+"));const episodeURL=(f,ep)=>episodePages.get(ep.id)||'/?film='+encodeURIComponent(f.id)+'&episode='+encodeURIComponent(ep.id);",1)
