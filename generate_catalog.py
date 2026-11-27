@@ -94,6 +94,19 @@ def build(sheets, template):
             shutil.copy2(p,OUT/p.name)
     if (ROOT/'assets').is_dir():
         shutil.copytree(ROOT/'assets', OUT/'assets', dirs_exist_ok=True)
+    # Add team navigation to existing standalone pages when their navigation is present.
+    for page_path in OUT.glob('*.html'):
+        if page_path.name in {'index.html', 'team.html'}:
+            continue
+        page_text = page_path.read_text(encoding='utf-8')
+        def add_team_nav(match):
+            block = match.group(0)
+            if '/team.html' in block:
+                return block
+            return block.replace('</nav>', '<a href="/team.html">В команду</a></nav>', 1)
+        updated = re.sub(r'<nav\b[^>]*class="[^"]*\btopnav\b[^"]*"[^>]*>.*?</nav>', add_team_nav, page_text, flags=re.S)
+        if updated != page_text:
+            page_path.write_text(updated, encoding='utf-8')
     poster_dir = OUT / 'assets' / 'posters'
     poster_dir.mkdir(parents=True, exist_ok=True)
     placeholder = poster_dir / 'placeholder.svg'
@@ -113,7 +126,7 @@ def build(sheets, template):
         import json
         return e('const a='+json.dumps(candidates,ensure_ascii=True)+';const i=Number(this.dataset.attempt||0);if(i>=a.length){this.onerror=null;return;}this.dataset.attempt=i+1;this.src=a[i];')
     (OUT/'.nojekyll').touch()
-    urls=[SITE,SITE+'services.html',SITE+'about.html',SITE+'privacy.html']
+    urls=[SITE,SITE+'services.html',SITE+'about.html',SITE+'privacy.html',SITE+'team.html']
     collection = OUT/'hunger-games.html'
     if collection.is_file():
         page = collection.read_text(encoding='utf-8')
@@ -141,7 +154,7 @@ def build(sheets, template):
         h+=f'<link rel="canonical" href="{e(url)}"><meta property="og:type" content="website"><meta property="og:title" content="{e(page_title)}"><meta property="og:description" content="{e(summary)}"><meta property="og:url" content="{e(url)}">'
         if poster: h+=f'<meta property="og:image" content="{e(poster)}">'
         h+='</head><body>'
-        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/" data-sc-back>← Назад к каталогу</a><article class="panel">'
+        body='<header><div><h1><a class="brand" href="/">SCREEN<span>CAPS</span></a></h1><p>Кино в кадрах · каталог фильмов и сериалов</p><nav class="topnav"><a href="/">Каталог</a><a href="/services.html">Услуги</a><a href="/about.html">О проекте</a><a href="/team.html">В команду</a><a id="groupLink" href="https://vk.ru/screencaps" target="_blank" rel="noopener noreferrer">Группа ВКонтакте</a></nav></div></header><main><section id="detail"><a href="/" data-sc-back>← Назад к каталогу</a><article class="panel">'
         if poster: body+=f'<div class="poster"><img src="{e(poster)}" onerror="{poster_error(r)}" alt="{e(title)}"></div>'
         body+=f'<h2>{e(title)}</h2><p>{e(r.get("Оригинальное название"))}</p><div class="detailmeta">'
         if year: body+=filter_link('year',year,year+('–'+r['Год окончания'] if r.get('Год окончания') else ''))
